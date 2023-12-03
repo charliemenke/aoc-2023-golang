@@ -62,6 +62,8 @@ func p1(input []string) int {
 
 func p2(input []string) int64 {
     defer utils.TimeFunc("p1")
+
+    // why did i do all this instead up just usings strings.HasPrefix????????
     word2digit := map[rune][]WordNum{
         'o': {WordNum{len: 3, intVal: []rune{'n', 'e'}, val: '1', name: "one"}},
         't': {WordNum{len: 3, intVal: []rune{'w','o'}, val: '2', name: "two"}, WordNum{len: 5, intVal: []rune{'h','r','e','e'}, val: '3', name: "three"}},
@@ -80,17 +82,14 @@ func p2(input []string) int64 {
             if err == nil {
                 rowNum = append(rowNum, c)
             } else {
-                // if char is apart of 1-9 characters check if word exists
+                // if char is first char of one-nine word nums, check if word exists
                 if numPossiblies, exists := word2digit[c]; exists {
                     for _, numPossibility := range numPossiblies {
                         //log.Printf("checking if %s exists, needs value of %d", numPossibility.name, numPossibility.intVal)
                         isMatch := true
+                        // make sure check wont exceed array length
                         if len(row) >= i+numPossibility.len-1 {
-                            //0 1 2 3 4 5 5 7 8 9 10 11
-                            //e i g h t w o t h r e  e
-                            //for _, n := range row[i+1:i+numPossibility.len] {
-                            //    log.Printf("%s", string(n))
-                            //}
+                            // because taking slice of iter is hard for some reason
                             var iter string
                             if i+numPossibility.len >= len(row) {
                                 iter = row[i+1:]
