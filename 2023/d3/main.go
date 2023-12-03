@@ -43,7 +43,6 @@ func main() {
 }
 
 func p1(input []string) int {
-
     // parse input into a 2d array, replaces anything != [0-9.] as a * (did this incase symbols got more complex in p2
     parsedInput := []string{}
     for _, line := range input {
@@ -86,11 +85,14 @@ func p1(input []string) int {
                     if partialPart.position.y == 1 {
                         part.start = Position{x: partialPart.position.x, y: 1}
                     } else {
+                        // default 'start' to current y index, this accounts for single digit nums
                         part.start = Position{x: partialPart.position.x, y: partialPart.position.y}
                         for startY := partialPart.position.y-1; startY >= 1; startY-- {
+                            // if err != nil, that means we have reached 1 past the start of the num, exit now
                             if _, err := strconv.Atoi(grid[partialPart.position.x][startY]); err != nil {
                                 break
                             }
+                            // if err == nil, push back the 'start' index
                             part.start = Position{x: partialPart.position.x, y: startY}
                         }
                     }
@@ -98,11 +100,14 @@ func p1(input []string) int {
                     if partialPart.position.y == len(grid[x]) - 2 {
                         part.end = Position{x: partialPart.position.x, y: len(grid[partialPart.position.x]) - 2 }
                     } else {
+                        // default 'end' to current y index, this accounts for single digit nums
                         part.end = Position{x: partialPart.position.x, y: partialPart.position.y}
                         for endY := partialPart.position.y+1; endY < len(grid[partialPart.position.x]); endY++ {
+                            // if err != nil, this means we have reached 1 past the end of the num, exit now
                             if _, err := strconv.Atoi(grid[partialPart.position.x][endY]); err != nil {
                                 break
                             }
+                            // if err == nil, push back 'end' index, we still have valid digits
                             part.end = Position{x: partialPart.position.x, y: endY}
                         }
                     }
@@ -141,7 +146,6 @@ func p1(input []string) int {
 }
 
 func p2(input []string) int {
-
     // build grid based on input, this time do not replace all symbols as '*'
     originalGrid := utils.BuidGrid(input)
     // pad grid on all sides with "." so we dont have to worry about array bounderies
