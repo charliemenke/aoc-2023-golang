@@ -19,10 +19,14 @@ type Card struct {
     Nums Set
     WinningNums Set
     CardVal int
-    CopiesWon int
+    CopiesWon []int
+    MaxCopiesId int // just so i dont have to handle in in the loop
     Scratched bool
 }
-func CreateCard(id int, toMatchNums []int, nums []int) Card {
+// func to create Card struct based on numbers to match, card numbers, and the 
+// maximum cards provided in input
+func CreateCard(id int, toMatchNums []int, nums []int, maxCopies int) Card {
+    // use Set for both toMatchNums and Nums for instant lookup
     toMatchSet := Set{}
     for _, n := range toMatchNums {
         toMatchSet[n] = true
@@ -31,32 +35,15 @@ func CreateCard(id int, toMatchNums []int, nums []int) Card {
     for _, n := range nums {
         numsSet[n] = true
     }
-
     return Card{
         Id: id,
         ToMatchNums: toMatchSet,
         Nums: numsSet,
         Scratched: false,
+        MaxCopiesId: maxCopies,
     }
 }
-func (c *Card) PrintToMatchNums() {
-    tm := []int{}
-    for n := range c.ToMatchNums {
-        tm = append(tm, n)
-    }
-    b, _ := json.Marshal(tm)
-    log.Printf("%v", string(b))
-
-}
-func (c *Card) PrintNums() {
-    nums := []int{}
-    for n := range c.Nums {
-        nums = append(nums, n)
-    }
-    b, _ := json.Marshal(nums)
-    log.Printf("%v", string(b))
-
-}
+// calculate winning numbers by doing an intersection on WinningNums and Nums
 func (c *Card) SetWinningNums() Set {
     // set card state to scratched true
     c.Scratched = true
@@ -71,6 +58,8 @@ func (c *Card) SetWinningNums() Set {
     c.WinningNums = intersection
     return intersection 
 }
+
+// for part 1. card val starts at 1 and for each WinningNums past len(1), double it
 func (c *Card) SetCardVal() int {
     if len(c.WinningNums) == 0 {
         if !c.Scratched {
@@ -88,26 +77,36 @@ func (c *Card) SetCardVal() int {
     return val
 }
 
-func (c *Card) SetWonCopiesNum() int {
+// for part 2. add each of the won copy card's Ids to its parent card
+// MaxCopiesId is used to make sure we dont add copy card id's that do 
+// no exist
+func (c *Card) SetWonCopiesNum() []int {
     if len(c.WinningNums) == 0 {
         if !c.Scratched {
             log.Println("Card is not scratched, did you forget to run SetWinningNums()?")
         }
-        c.CopiesWon = 0
-        return 0
+        c.CopiesWon = []int{}
+        return []int{}
     }
-    val := len(c.WinningNums)
+    val := []int{}
+    for i := 1; i <= len(c.WinningNums); i++ {
+        wonCopyId := i + c.Id
+        if wonCopyId > c.MaxCopiesId {
+            break
+        }
+        val = append(val, wonCopyId)
+    }
     c.CopiesWon = val
     return val
 } 
 
 
 func main() {
-    timer := utils.TimeFunc("p1")
+    timer := utils.TimeFunc("p2")
     defer timer()
     input := utils.ReadInput("./input.txt")
 
-    a := p1(input)
+    a := p2(input)
     log.Println(a)
 }
 
@@ -122,9 +121,6 @@ func p1(input []string) int {
         reg := regexp.MustCompile(`\d+`)
         toMatchNumsStr := reg.FindAllString(parsedCard[0], -1)
         numsStr := reg.FindAllString(parsedCard[1], -1)
-        //a, _ := json.Marshal(toMatchNumsStr)
-        //b, _ := json.Marshal(numsStr)
-        //log.Printf("%v | %v", string(a), string(b))
 
         toMatchNums := []int{}
         for _, n := range toMatchNumsStr {
@@ -143,13 +139,10 @@ func p1(input []string) int {
             }
         }
 
-        card := CreateCard(cardId+1, toMatchNums, nums)
+        card := CreateCard(cardId+1, toMatchNums, nums, len(input))
         _ = card.SetWinningNums()
         _ = card.SetCardVal()
 
-        //log.Printf("card %d", card.Id)
-        //card.PrintToMatchNums()
-        //card.PrintNums()
         result += card.CardVal
         cardsProcessed++
     }
@@ -164,8 +157,16 @@ func p2(input []string) int {
     result := 0
 
     // map to track previous proccessed cards values
-    // key = cardId, value = winningCopies
-    cardLookUp := map[int]int{}
+    // key = cardId, value = array of ids of copies won
+    // {
+    //   1: [2,3,4,5]
+    //   2: [3,4]
+    //   3: [4, 5]
+    //   4: [5]
+    //   5: []
+    //   6: []
+    // }
+    cardLookUp := map[int][]int{}
 
     originalCards := []Card{}
     for cardId, cardInput := range input {
@@ -175,6 +176,7 @@ func p2(input []string) int {
         toMatchNumsStr := reg.FindAllString(parsedCard[0], -1)
         numsStr := reg.FindAllString(parsedCard[1], -1)
 
+        // convert all num strings to ints
         toMatchNums := []int{}
         for _, n := range toMatchNumsStr {
             if v, err := strconv.Atoi(n); err == nil {
@@ -192,28 +194,44 @@ func p2(input []string) int {
             }
         }
 
-        card := CreateCard(cardId+1, toMatchNums, nums)
+        // create card struct from input
+        card := CreateCard(cardId+1, toMatchNums, nums, len(input))
+        // calculate winning numbers
         _ = card.SetWinningNums()
+        // calculate card copy ids won
         _ = card.SetWonCopiesNum()
+        // append cards to array to process through copies later
         originalCards = append(originalCards, card)
+        // since we are going through every card this first pass, we can completly fill
+        // out the lookup table now so we dont have to recompute "card.SetWinningNums/SetWonCopiesNum"
+        // later.
+        cardLookUp[card.Id] = card.CopiesWon
+        // add one to result since we are tracking all cards collected
         result++
     }
 
+    // go through each original card and add up all our won copies
     for _, card := range originalCards {
-        // for each original card, solve won copies
-        for i := card.Id; i < card.Id + card.CopiesWon; i++ {
-            // check if card copy value is in lookup table
-            if v, exists := cardLookUp[i]; exists {
-
-            } else {
-            // if not, calculate and add to look up table
-
-            }
+        // for each original card's won copies, add 1 to result and recursivly sum
+        // each copies won copies
+        for _, id := range card.CopiesWon {
+            result++
+            CountCopies(&cardLookUp, id, &result)
         }
     }
-
-
-
     return result
+}
+
+func CountCopies(lookup *map[int][]int, cardId int, result *int) {
+    // base case, exit when we reached a card with no won copies
+    if len((*lookup)[cardId]) == 0 {
+        return 
+    }
+    // else, add length of won copy's copies,
+    // and recursivly dig through lookup table
+    *result += len((*lookup)[cardId])
+    for _, id := range (*lookup)[cardId] {
+        CountCopies(lookup, id, result)
+    }
 }
 
